@@ -20,6 +20,11 @@ export default function HomeScreenRedesigned() {
     router.push("/gameplay");
   };
 
+  const handleViewStats = async () => {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push("/stats");
+  };
+
   return (
     <ScreenContainer containerClassName="bg-black" className="p-0">
       <LinearGradient
@@ -231,6 +236,45 @@ export default function HomeScreenRedesigned() {
                 </LinearGradient>
               </Pressable>
             )}
+
+            {/* Stats Button */}
+            <Pressable
+              onPress={handleViewStats}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}
+            >
+              <LinearGradient
+                colors={["rgba(34, 197, 94, 0.15)", "rgba(34, 197, 94, 0.05)"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: "#22C55E",
+                  paddingVertical: 16,
+                  paddingHorizontal: 24,
+                  alignItems: "center",
+                  shadowColor: "#22C55E",
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.6,
+                  shadowRadius: 16,
+                  elevation: 12,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "700",
+                    color: "#22C55E",
+                    letterSpacing: 1,
+                  }}
+                >
+                  📊 MY STATS
+                </Text>
+              </LinearGradient>
+            </Pressable>
           </View>
 
           {/* Feature Cards */}

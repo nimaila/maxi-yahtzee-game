@@ -10,6 +10,7 @@ import {
   scoreAndAdvance,
   getAvailableCategories,
 } from "./game-engine";
+import { StatsManager } from "./stats-manager";
 
 interface GameContextType {
   gameState: GameState | null;
@@ -88,7 +89,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!gameState) return;
       const newState = scoreAndAdvance(gameState, category as any);
       if (newState.gameOver) {
-        // Game over, don't start new turn
+        // Game over - record stats for all players
+        recordGameStats(newState);
         setGameState(newState);
         saveGameState(newState);
       } else {
@@ -101,9 +103,41 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     [gameState]
   );
 
+  const recordGameStats = async (finalState: GameState) => {
+    // Sort players by final score to determine placement
+    const sortedPlayers = [...finalState.players].sort((a, b) => b.totalScore - a.totalScore);
+    
+    for (let i = 0; i < sortedPlayers.length; i++) {
+      const player = sortedPlayers[i];
+      const placement = i + 1;
+      const opponents = sortedPlayers
+        .filter((_, idx) => idx !== i)
+        .map(p => p.name);
+      
+      await StatsManager.recordGameResult(
+        player.id,
+        player.totalScore,
+        placement,
+        opponents,
+        finalState.rules.diceCount,
+        finalState.rules.bonusThreshold
+      );
+    }
+  };
+
   const resetGame = useCallback(() => {
     setGameState(null);
     AsyncStorage.removeItem(GAME_STATE_KEY);
+  }, []);
+
+  const initializePlayerStats = useCallback(async (playerNames: string[]) => {
+    for (const name of playerNames) {
+      const playerId = `player_${Date.now()}_${Math.random()}`;
+      const existingStats = await StatsManager.getPlayerStats(playerId);
+      if (!existingStats) {
+        await StatsManager.initializePlayerStats(playerId, name);
+      }
+    }
   }, []);
 
   const availableCategories = gameState ? getAvailableCategories(gameState) : [];
@@ -111,7 +145,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const value: GameContextType = {
     gameState,
     isLoading,
-    startNewGame,
+    startNewGame: (playerNames, rules) => {
+      initializePlayerStats(playerNames);
+      startNewGame(playerNames, rules);
+    },
     rollDice,
     holdDie,
     scoreCategory,

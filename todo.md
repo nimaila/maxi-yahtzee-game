@@ -56,11 +56,24 @@
 - [ ] Cross-platform testing (iOS, Android, Web)
 
 ## Audio & Sound (Final Phase)
-- [ ] Dice roll sound effects
-- [ ] Score confirmation audio
+- [x] Dice roll sound effects
+- [x] Score confirmation audio
 - [ ] Background music (optional)
 - [ ] Volume control
 
+## Player Statistics & Achievements (NEW)
+- [x] Create statistics data model (wins, losses, best score, average score, games played)
+- [x] Create achievement badge system (Perfect Game, Streak Master, Score Collector, etc.)
+- [x] Implement AsyncStorage persistence for player stats
+- [x] Build Stats screen UI with player profiles
+- [x] Display game history with scores and dates
+- [x] Show achievement badges with unlock conditions
+- [x] Add stats navigation to home screen
+- [x] Integrate stats tracking into game context
+- [x] Track stats after each completed game
+- [x] Display achievement notifications on unlock
+- [x] Create comprehensive unit tests (12 tests passing)
+
 ## Deployment
-- [ ] Create checkpoint with animations
+- [x] Create checkpoint with stats and achievements
 - [ ] Generate APK/IPA via Publish button
