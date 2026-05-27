@@ -8,7 +8,7 @@ import { getCategoryName, getCategoryPoints } from "@/lib/game-engine";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeIn, SlideInDown, ZoomIn } from "react-native-reanimated";
 
-export default function GameplayScreen() {
+export default function GameplayEnhancedScreen() {
   const router = useRouter();
   const { gameState, rollDice, holdDie, scoreCategory, resetGame, availableCategories } = useGame();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -66,7 +66,7 @@ export default function GameplayScreen() {
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
           <View className="px-4 py-6 gap-6">
             {/* Header with Back Button */}
-            <View className="flex-row justify-between items-center">
+            <Animated.View entering={FadeIn.duration(400)} className="flex-row justify-between items-center">
               <Pressable
                 onPress={handleBackToSetup}
                 style={({ pressed }) => [
@@ -78,23 +78,27 @@ export default function GameplayScreen() {
                     justifyContent: "center",
                     alignItems: "center",
                     opacity: pressed ? 0.7 : 1,
+                    transform: [{ scale: pressed ? 0.95 : 1 }],
                   },
                 ]}
               >
                 <Text className="text-white text-xl">‹</Text>
               </Pressable>
-              <View className="items-center">
+
+              <Animated.View entering={ZoomIn.duration(400).delay(100)} className="items-center">
                 <Text className="text-sm text-gray-400">Turn {gameState.currentTurn}/20</Text>
                 <Text className="text-2xl font-bold text-white">{currentPlayer.name}</Text>
-              </View>
-              <View className="w-11 items-center">
+              </Animated.View>
+
+              <Animated.View entering={ZoomIn.duration(400).delay(100)} className="w-11 items-center">
                 <Text className="text-2xl font-bold text-emerald-400">{currentPlayer.totalScore}</Text>
                 <Text className="text-xs text-gray-400">pts</Text>
-              </View>
-            </View>
+              </Animated.View>
+            </Animated.View>
 
-            {/* Dice Grid */}
-            <View
+            {/* Dice Grid with Animations */}
+            <Animated.View
+              entering={SlideInDown.duration(400).delay(150)}
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.03)",
                 borderWidth: 1,
@@ -120,6 +124,7 @@ export default function GameplayScreen() {
                   </Pressable>
                 ))}
               </View>
+
               <View className="flex-row gap-3">
                 {gameState.currentDice.slice(3, 6).map((value, i) => (
                   <Pressable
@@ -137,45 +142,43 @@ export default function GameplayScreen() {
                 ))}
               </View>
 
-              <View className="items-center mt-2">
+              <Animated.View entering={FadeIn.duration(300).delay(200)} className="items-center mt-2">
                 <Text className="text-sm text-gray-400">
                   Rolls Remaining: <Text className="font-bold text-white">{gameState.rollsRemaining}</Text>
                 </Text>
-              </View>
-              {isRolling && (
-                <View className="items-center mt-2">
-                  <Text className="text-xs text-emerald-400 font-semibold">Rolling...</Text>
-                </View>
-              )}
-            </View>
+              </Animated.View>
+            </Animated.View>
 
             {/* Roll Dice Button */}
-            <Pressable
-              onPress={handleRollDice}
-              disabled={gameState.rollsRemaining <= 0 || isRolling}
-              style={({ pressed }) => [
-                {
-                  paddingVertical: 14,
-                  paddingHorizontal: 24,
-                  borderRadius: 12,
-                  backgroundColor:
-                    gameState.rollsRemaining <= 0
-                      ? "rgba(255, 255, 255, 0.1)"
-                      : pressed
-                        ? "rgba(124, 58, 237, 0.8)"
-                        : "rgba(124, 58, 237, 1)",
-                  opacity: gameState.rollsRemaining <= 0 ? 0.5 : pressed ? 0.9 : 1,
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                },
-              ]}
-            >
-              <Text className="text-white font-bold text-center text-base">
-                {isRolling ? "Rolling..." : gameState.rollsRemaining <= 0 ? "Choose Category" : "Roll Dice"}
-              </Text>
-            </Pressable>
+            <Animated.View entering={SlideInDown.duration(400).delay(250)}>
+              <Pressable
+                onPress={handleRollDice}
+                disabled={gameState.rollsRemaining <= 0 || isRolling}
+                style={({ pressed }) => [
+                  {
+                    paddingVertical: 14,
+                    paddingHorizontal: 24,
+                    borderRadius: 12,
+                    backgroundColor:
+                      gameState.rollsRemaining <= 0
+                        ? "rgba(255, 255, 255, 0.1)"
+                        : pressed
+                          ? "rgba(124, 58, 237, 0.8)"
+                          : "rgba(124, 58, 237, 1)",
+                    opacity: gameState.rollsRemaining <= 0 ? 0.5 : pressed ? 0.9 : 1,
+                    transform: [{ scale: pressed ? 0.97 : 1 }],
+                  },
+                ]}
+              >
+                <Text className="text-white font-bold text-center text-base">
+                  {isRolling ? "Rolling..." : gameState.rollsRemaining <= 0 ? "Choose Category" : "Roll Dice"}
+                </Text>
+              </Pressable>
+            </Animated.View>
 
             {/* Scorecard */}
-            <View
+            <Animated.View
+              entering={SlideInDown.duration(400).delay(300)}
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.03)",
                 borderWidth: 1,
@@ -233,6 +236,7 @@ export default function GameplayScreen() {
                               : "rgba(255, 255, 255, 0.05)"
                             : "rgba(255, 255, 255, 0.02)",
                           opacity: isAvailable ? 1 : 0.5,
+                          transform: [{ scale: pressed ? 0.98 : 1 }],
                         },
                       ]}
                     >
@@ -244,21 +248,19 @@ export default function GameplayScreen() {
                       </View>
                       <Text
                         className={
-                          (currentPlayer.scores as any)[category] !== undefined
+                          score !== undefined
                             ? "text-emerald-400 font-bold"
                             : "text-gray-500 font-bold"
                         }
                       >
-                        {(currentPlayer.scores as any)[category] !== undefined
-                          ? (currentPlayer.scores as any)[category]
-                          : "−"}
+                        {score !== undefined ? score : "−"}
                       </Text>
                     </Pressable>
                   );
                 }}
                 keyExtractor={(item) => item}
               />
-            </View>
+            </Animated.View>
           </View>
         </ScrollView>
       </SafeAreaView>

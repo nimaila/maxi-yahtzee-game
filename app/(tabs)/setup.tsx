@@ -6,6 +6,7 @@ import { useGame } from "@/lib/game-context";
 import { GameRules } from "@/lib/game-engine";
 import { useColors } from "@/hooks/use-colors";
 import * as Haptics from "expo-haptics";
+import Animated, { FadeIn, SlideInDown, ZoomIn } from "react-native-reanimated";
 
 export default function SetupScreen() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function SetupScreen() {
         <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
           <View className="px-6 py-8 gap-8">
             {/* Header */}
-            <View className="items-center gap-2 mb-4">
+            <Animated.View entering={FadeIn.duration(400)} className="items-center gap-2 mb-4">
               <Text className="text-5xl font-bold text-white" style={{ letterSpacing: 2 }}>
                 MAXI
               </Text>
@@ -62,10 +63,10 @@ export default function SetupScreen() {
                 YAHTZEE
               </Text>
               <Text className="text-sm text-gray-400 mt-2">Elite Edition</Text>
-            </View>
+            </Animated.View>
 
             {/* Player Count Selection */}
-            <View className="gap-4">
+            <Animated.View entering={SlideInDown.duration(400).delay(100)} className="gap-4">
               <Text className="text-lg font-semibold text-white">Players</Text>
               <View className="flex-row gap-3">
                 {[1, 2, 3, 4].map((count) => (
@@ -96,11 +97,11 @@ export default function SetupScreen() {
                   </Pressable>
                 ))}
               </View>
-            </View>
+            </Animated.View>
 
             {/* Player Names */}
             {playerCount > 0 && (
-              <View className="gap-3">
+              <Animated.View entering={SlideInDown.duration(400).delay(150)} className="gap-3">
                 <Text className="text-lg font-semibold text-white">Player Names</Text>
                 {Array.from({ length: playerCount }).map((_, i) => (
                   <TextInput
@@ -121,11 +122,11 @@ export default function SetupScreen() {
                     }}
                   />
                 ))}
-              </View>
+              </Animated.View>
             )}
 
             {/* Game Rules */}
-            <View className="gap-4">
+            <Animated.View entering={SlideInDown.duration(400).delay(200)} className="gap-4">
               <Text className="text-lg font-semibold text-white">Game Rules</Text>
 
               {/* Bonus Threshold */}
@@ -295,25 +296,27 @@ export default function SetupScreen() {
                   </Pressable>
                 </View>
               </View>
-            </View>
+            </Animated.View>
 
             {/* Start Game Button */}
-            <Pressable
-              onPress={handleStartGame}
-              style={({ pressed }) => [
-                {
-                  marginTop: 16,
-                  paddingVertical: 16,
-                  paddingHorizontal: 24,
-                  borderRadius: 12,
-                  backgroundColor: pressed ? "rgba(124, 58, 237, 0.8)" : "rgba(124, 58, 237, 1)",
-                  opacity: pressed ? 0.9 : 1,
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                },
-              ]}
-            >
-              <Text className="text-white font-bold text-center text-lg">Start Game</Text>
-            </Pressable>
+            <Animated.View entering={SlideInDown.duration(400).delay(250)}>
+              <Pressable
+                onPress={handleStartGame}
+                style={({ pressed }) => [
+                  {
+                    marginTop: 16,
+                    paddingVertical: 16,
+                    paddingHorizontal: 24,
+                    borderRadius: 12,
+                    backgroundColor: pressed ? "rgba(124, 58, 237, 0.8)" : "rgba(124, 58, 237, 1)",
+                    opacity: pressed ? 0.9 : 1,
+                    transform: [{ scale: pressed ? 0.97 : 1 }],
+                  },
+                ]}
+              >
+                <Text className="text-white font-bold text-center text-lg">Start Game</Text>
+              </Pressable>
+            </Animated.View>
           </View>
         </ScrollView>
       </SafeAreaView>

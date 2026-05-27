@@ -33,13 +33,13 @@
 - [x] Play Again button
 
 ## UI/UX & Design
-- [ ] Premium glassmorphism aesthetic (deep black, glowing gradients)
-- [ ] Double-bezel card architecture (nested borders)
-- [ ] Smooth animations (dice roll, button press, transitions)
-- [ ] Haptic feedback on interactions
-- [ ] Mobile-responsive layout (portrait 9:16)
-- [ ] Safe area handling (notch, home indicator)
-- [ ] Dark mode support
+- [x] Premium glassmorphism aesthetic (deep black, glowing gradients)
+- [x] Double-bezel card architecture (nested borders)
+- [x] Smooth animations (dice roll, button press, transitions) — FadeIn, SlideInDown, ZoomIn, 3D dice rotation
+- [x] Haptic feedback on interactions (Light, Medium, Success feedback)
+- [x] Mobile-responsive layout (portrait 9:16)
+- [x] Safe area handling (notch, home indicator)
+- [ ] Dark mode support (already using dark theme)
 
 ## Visual Assets
 - [x] Custom app logo/icon (square, 1024×1024)
@@ -52,9 +52,15 @@
 - [x] Test player flow (1-4 players)
 - [x] Test customizable rules (bonus, throws, dice count)
 - [x] Test edge cases (invalid scores, all categories used)
-- [ ] Performance optimization (smooth animations, no lag)
+- [x] Performance optimization (smooth animations, no lag) — Reanimated 4 for 60fps animations
 - [ ] Cross-platform testing (iOS, Android, Web)
 
+## Audio & Sound (Final Phase)
+- [ ] Dice roll sound effects
+- [ ] Score confirmation audio
+- [ ] Background music (optional)
+- [ ] Volume control
+
 ## Deployment
-- [ ] Create checkpoint
+- [ ] Create checkpoint with animations
 - [ ] Generate APK/IPA via Publish button
