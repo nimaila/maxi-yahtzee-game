@@ -8,6 +8,7 @@ import { audioManager } from "@/lib/audio-manager";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import * as Haptics from "expo-haptics";
+import type { ScoringCategory } from "@/lib/game-engine";
 
 export default function GameplayScreenRedesigned() {
   const router = useRouter();
@@ -55,7 +56,14 @@ export default function GameplayScreenRedesigned() {
     gameContext.scoreCategory(category);
   };
 
-  const availableCategories = gameContext.availableCategories;
+  const allCategories: ScoringCategory[] = [
+    "ones", "twos", "threes", "fours", "fives", "sixes",
+    "pair", "twoPairs", "threePairs", "threeOfAKind", "fourOfAKind", "fiveOfAKind",
+    "smallStraight", "bigStraight", "fullStraight", "fullHouse", "villa", "tower",
+    "chance", "maxiYahtzee"
+  ];
+  const scoredCategories = Object.keys(currentPlayer.scores);
+  const availableCategories = allCategories.filter((cat: ScoringCategory) => !scoredCategories.includes(cat));
 
   return (
     <ScreenContainer containerClassName="bg-black" className="p-0">
@@ -290,16 +298,16 @@ export default function GameplayScreenRedesigned() {
 
             <FlatList
               scrollEnabled={false}
-              data={availableCategories}
-              keyExtractor={(item: string) => item}
-              renderItem={({ item: category }: { item: string }) => {
+              data={allCategories}
+              keyExtractor={(item: ScoringCategory) => item}
+              renderItem={({ item: category }: { item: ScoringCategory }) => {
                 const score = currentTurn.scores[category as keyof typeof currentTurn.scores];
-                const isScored = score !== undefined;
+                const isScored = scoredCategories.includes(category);
 
                 return (
                   <Pressable
                     onPress={() => !isScored && handleScoreCategory(category)}
-                    disabled={isScored}
+                    disabled={isScored || !availableCategories.includes(category)}
                     style={({ pressed }) => ({
                       opacity: isScored ? 0.5 : pressed ? 0.8 : 1,
                     })}
@@ -326,7 +334,7 @@ export default function GameplayScreenRedesigned() {
                           flex: 1,
                         }}
                       >
-                        {category}
+                        {category.replace(/([A-Z])/g, ' $1').trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                       </Text>
                       <Text
                         style={{
