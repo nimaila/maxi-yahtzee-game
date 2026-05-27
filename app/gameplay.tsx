@@ -65,6 +65,19 @@ export default function GameplayScreenRedesigned() {
   const scoredCategories = Object.keys(currentPlayer.scores);
   const availableCategories = allCategories.filter((cat: ScoringCategory) => !scoredCategories.includes(cat));
 
+  const handlePause = () => {
+    gameContext.pauseGame();
+  };
+
+  const handleQuit = () => {
+    gameContext.quitGame();
+    router.push('/');
+  };
+
+  const handleUndo = () => {
+    gameContext.undoLastScore();
+  };
+
   return (
     <ScreenContainer containerClassName="bg-black" className="p-0">
       <LinearGradient
@@ -76,10 +89,83 @@ export default function GameplayScreenRedesigned() {
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: 16,
-            paddingTop: 16,
+            paddingTop: 32,
             paddingBottom: 32,
           }}
         >
+          {/* Control Buttons */}
+          <View
+            style={{
+              flexDirection: "row",
+              gap: 12,
+              marginBottom: 20,
+              justifyContent: "flex-end",
+            }}
+          >
+            {gameContext.lastScoredCategory && (
+              <Pressable
+                onPress={handleUndo}
+                style={({ pressed }) => ({
+                  opacity: pressed ? 0.8 : 1,
+                  transform: [{ scale: pressed ? 0.95 : 1 }],
+                })}
+              >
+                <View
+                  style={{
+                    backgroundColor: "rgba(34, 197, 94, 0.2)",
+                    borderWidth: 1,
+                    borderColor: "#22C55E",
+                    borderRadius: 8,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}
+                >
+                  <Text style={{ color: "#22C55E", fontSize: 12, fontWeight: "600" }}>↶ UNDO</Text>
+                </View>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={handlePause}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.95 : 1 }],
+              })}
+            >
+              <View
+                style={{
+                  backgroundColor: "rgba(245, 158, 11, 0.2)",
+                  borderWidth: 1,
+                  borderColor: "#F59E0B",
+                  borderRadius: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                }}
+              >
+                <Text style={{ color: "#F59E0B", fontSize: 12, fontWeight: "600" }}>⏸ PAUSE</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={handleQuit}
+              style={({ pressed }) => ({
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.95 : 1 }],
+              })}
+            >
+              <View
+                style={{
+                  backgroundColor: "rgba(239, 68, 68, 0.2)",
+                  borderWidth: 1,
+                  borderColor: "#EF4444",
+                  borderRadius: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                }}
+              >
+                <Text style={{ color: "#EF4444", fontSize: 12, fontWeight: "600" }}>✕ QUIT</Text>
+              </View>
+            </Pressable>
+          </View>
+
           {/* Player Info Card */}
           <View
             style={{

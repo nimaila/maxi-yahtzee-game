@@ -15,10 +15,16 @@ import { StatsManager } from "./stats-manager";
 interface GameContextType {
   gameState: GameState | null;
   isLoading: boolean;
+  isPaused: boolean;
+  lastScoredCategory: string | null;
   startNewGame: (playerNames: string[], rules: GameRules) => void;
   rollDice: () => void;
   holdDie: (index: number) => void;
   scoreCategory: (category: string) => void;
+  undoLastScore: () => void;
+  pauseGame: () => void;
+  resumeGame: () => void;
+  quitGame: () => void;
   resetGame: () => void;
   availableCategories: string[];
 }
@@ -30,6 +36,9 @@ const GAME_STATE_KEY = "maxi-yahtzee-game-state";
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
+  const [lastScoredCategory, setLastScoredCategory] = useState<string | null>(null);
+  const [previousGameState, setPreviousGameState] = useState<GameState | null>(null);
 
   // Load saved game state on mount
   useEffect(() => {
@@ -87,6 +96,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const scoreCategory = useCallback(
     (category: string) => {
       if (!gameState) return;
+      setPreviousGameState(gameState);
+      setLastScoredCategory(category);
       const newState = scoreAndAdvance(gameState, category as any);
       if (newState.gameOver) {
         // Game over - record stats for all players
@@ -125,8 +136,36 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const undoLastScore = useCallback(() => {
+    if (previousGameState) {
+      setGameState(previousGameState);
+      saveGameState(previousGameState);
+      setPreviousGameState(null);
+      setLastScoredCategory(null);
+    }
+  }, [previousGameState]);
+
+  const pauseGame = useCallback(() => {
+    setIsPaused(true);
+  }, []);
+
+  const resumeGame = useCallback(() => {
+    setIsPaused(false);
+  }, []);
+
+  const quitGame = useCallback(() => {
+    setGameState(null);
+    setIsPaused(false);
+    setLastScoredCategory(null);
+    setPreviousGameState(null);
+    AsyncStorage.removeItem(GAME_STATE_KEY);
+  }, []);
+
   const resetGame = useCallback(() => {
     setGameState(null);
+    setIsPaused(false);
+    setLastScoredCategory(null);
+    setPreviousGameState(null);
     AsyncStorage.removeItem(GAME_STATE_KEY);
   }, []);
 
@@ -145,6 +184,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const value: GameContextType = {
     gameState,
     isLoading,
+    isPaused,
+    lastScoredCategory,
     startNewGame: (playerNames, rules) => {
       initializePlayerStats(playerNames);
       startNewGame(playerNames, rules);
@@ -152,6 +193,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     rollDice,
     holdDie,
     scoreCategory,
+    undoLastScore,
+    pauseGame,
+    resumeGame,
+    quitGame,
     resetGame,
     availableCategories,
   };
