@@ -122,6 +122,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
 
+export { GameContext };
+
 export function useGame() {
   const context = useContext(GameContext);
   if (!context) {
