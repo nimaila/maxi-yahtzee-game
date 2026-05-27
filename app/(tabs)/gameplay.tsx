@@ -4,6 +4,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { Dice3DEnhanced } from "@/components/dice-3d-enhanced";
 import { ScoreCelebrationModal } from "@/components/score-celebration-modal";
 import { useGame } from "@/lib/game-context";
+import { audioManager } from "@/lib/audio-manager";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import * as Haptics from "expo-haptics";
@@ -36,6 +37,7 @@ export default function GameplayScreenRedesigned() {
 
   const handleRollDice = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await audioManager.playDiceRoll();
     gameContext.rollDice();
   };
 
@@ -49,6 +51,7 @@ export default function GameplayScreenRedesigned() {
     setCelebrationData({ score, category });
     setCelebrationVisible(true);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await audioManager.playScoreConfirmation();
     gameContext.scoreCategory(category);
   };
 
