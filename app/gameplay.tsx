@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { Dice3DEnhanced } from "@/components/dice-3d-enhanced";
 import { ScoreCelebrationModal } from "@/components/score-celebration-modal";
+import { TurnTransition } from "@/components/turn-transition";
 import { useGame } from "@/lib/game-context";
 import { audioManager } from "@/lib/audio-manager";
 import { useRouter } from "expo-router";
@@ -55,6 +56,38 @@ export default function GameplayScreen() {
   const [celebrationVisible, setCelebrationVisible] = useState(false);
   const [celebrationData, setCelebrationData] = useState({ score: 0, category: "" });
 
+  // P0 fix #2 — drive the dice tumble animation. Without this, the
+  // Dice3DEnhanced component receives isRolling={false} permanently.
+  const [isRolling, setIsRolling] = useState(false);
+  const rollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // P1 — Turn transition state. We capture the next player's identity at the
+  // moment of scoring so the overlay shows the right name after the
+  // celebration modal dismisses.
+  const [transitionVisible, setTransitionVisible] = useState(false);
+  const [transitionTarget, setTransitionTarget] = useState<{
+    name: string;
+    number: number;
+  } | null>(null);
+  // Tracks whether the next celebration dismiss should hand off to the
+  // transition (set true only when scoring actually advances to another player).
+  const pendingHandoffRef = useRef(false);
+
+  // P0 fix #1 — Game Over navigation. gameState.gameOver can't be checked
+  // synchronously after scoreCategory(); React state updates are async.
+  useEffect(() => {
+    if (gameContext.gameState?.gameOver) {
+      router.push("/gameover");
+    }
+  }, [gameContext.gameState?.gameOver, router]);
+
+  // Cleanup the roll-animation timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (rollTimeoutRef.current) clearTimeout(rollTimeoutRef.current);
+    };
+  }, []);
+
   if (!gameContext.gameState) {
     return (
       <ScreenContainer>
@@ -88,10 +121,14 @@ export default function GameplayScreen() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleRollDice = async () => {
-    if (gameState.rollsRemaining <= 0 || isPaused) return;
+    if (gameState.rollsRemaining <= 0 || isPaused || isRolling) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await audioManager.playDiceRoll();
+    // Drive the tumble animation for ~500ms (Dice3DEnhanced reads isRolling).
+    setIsRolling(true);
     gameContext.rollDice();
+    if (rollTimeoutRef.current) clearTimeout(rollTimeoutRef.current);
+    rollTimeoutRef.current = setTimeout(() => setIsRolling(false), 500);
   };
 
   const handleDicePress = (index: number) => {
@@ -107,9 +144,35 @@ export default function GameplayScreen() {
     setCelebrationVisible(true);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await audioManager.playScoreConfirmation();
+
+    // Determine the next player BEFORE scoring (so we can preload the
+    // transition overlay with the right name). Skip handoff for solo games.
+    const isMultiplayer = gameState.players.length > 1;
+    if (isMultiplayer) {
+      const nextIdx = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+      const nextPlayer = gameState.players[nextIdx];
+      setTransitionTarget({ name: nextPlayer.name, number: nextIdx + 1 });
+      pendingHandoffRef.current = true;
+    }
+
     gameContext.scoreCategory(category);
-    if (gameState.gameOver) router.push("/gameover");
+    // Game Over nav is handled by the useEffect above — gameState.gameOver
+    // hasn't updated yet at this point (React state updates are async).
   };
+
+  // Fires when the celebration modal auto-dismisses. If this score advanced
+  // to another player (and the game isn't over), show the turn transition.
+  const handleCelebrationClose = useCallback(() => {
+    setCelebrationVisible(false);
+    if (pendingHandoffRef.current && !gameContext.gameState?.gameOver) {
+      setTransitionVisible(true);
+    }
+    pendingHandoffRef.current = false;
+  }, [gameContext.gameState?.gameOver]);
+
+  const handleTransitionDone = useCallback(() => {
+    setTransitionVisible(false);
+  }, []);
 
   const handleQuit = () => {
     gameContext.quitGame();
@@ -119,7 +182,8 @@ export default function GameplayScreen() {
   // ── Render helpers ────────────────────────────────────────────────────────
   const rollsTotal = gameState.rules.throwsPerTurn;
   const rollsUsed = rollsTotal - gameState.rollsRemaining;
-  const canRoll = gameState.rollsRemaining > 0 && !isPaused;
+  const canRoll =
+    gameState.rollsRemaining > 0 && !isPaused && !isRolling && !transitionVisible;
 
   return (
     <ScreenContainer containerClassName="bg-black" className="p-0">
@@ -176,7 +240,7 @@ export default function GameplayScreen() {
                   key={index}
                   value={value}
                   isHeld={gameState.heldDice[index]}
-                  isRolling={false}
+                  isRolling={isRolling}
                   onPress={() => handleDicePress(index)}
                   size={64}
                 />
@@ -410,7 +474,14 @@ export default function GameplayScreen() {
           visible={celebrationVisible}
           score={celebrationData.score}
           category={celebrationData.category}
-          onClose={() => setCelebrationVisible(false)}
+          onClose={handleCelebrationClose}
+        />
+
+        <TurnTransition
+          visible={transitionVisible}
+          playerName={transitionTarget?.name ?? ""}
+          playerNumber={transitionTarget?.number ?? 1}
+          onDone={handleTransitionDone}
         />
       </LinearGradient>
     </ScreenContainer>

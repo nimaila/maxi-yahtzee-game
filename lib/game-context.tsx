@@ -67,8 +67,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   };
 
   const startNewGame = useCallback(
-    (playerNames: string[], rules: GameRules) => {
+    async (playerNames: string[], rules: GameRules) => {
       const newState = initializeGame(playerNames, rules);
+
+      // P1 fix — initialize player-stats records using the SAME canonical IDs
+      // (`player-0`, `player-1`, ...) that initializeGame assigns. The old
+      // initializePlayerStats() generated random IDs that never matched, so
+      // StatsManager.recordGameResult() at game-end found no record and
+      // bailed out (returning null) — stats appeared "wired" but recorded
+      // nothing. recordGameResult does NOT auto-create, so init is required.
+      for (const player of newState.players) {
+        const existing = await StatsManager.getPlayerStats(player.id);
+        if (!existing) {
+          await StatsManager.initializePlayerStats(player.id, player.name);
+        }
+      }
+
       const stateWithDice = startTurn(newState);
       setGameState(stateWithDice);
       saveGameState(stateWithDice);
@@ -170,13 +184,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const initializePlayerStats = useCallback(async (playerNames: string[]) => {
-    for (const name of playerNames) {
-      const playerId = `player_${Date.now()}_${Math.random()}`;
-      const existingStats = await StatsManager.getPlayerStats(playerId);
-      if (!existingStats) {
-        await StatsManager.initializePlayerStats(playerId, name);
-      }
-    }
+    // P1 fix — DEPRECATED. Previously generated random IDs that never
+    // matched the canonical `player-N` IDs used by initializeGame(), causing
+    // StatsManager.recordGameResult() at game-end to silently fail. The init
+    // logic has been moved inline into startNewGame above, where the
+    // canonical IDs are available.
+    return;
   }, []);
 
   const availableCategories = gameState ? getAvailableCategories(gameState) : [];
@@ -187,7 +200,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     isPaused,
     lastScoredCategory,
     startNewGame: (playerNames, rules) => {
-      initializePlayerStats(playerNames);
+      // initializePlayerStats is now handled inside startNewGame using
+      // canonical player IDs. The legacy callback above is a no-op.
       startNewGame(playerNames, rules);
     },
     rollDice,
