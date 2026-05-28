@@ -1,7 +1,9 @@
 import { C, GRADIENTS } from "@/constants/game-theme";
+import React, { useEffect, useState } from "react";
 import { ScrollView, Text, View, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
+import { Confetti } from "@/components/confetti";
 import { useGame } from "@/lib/game-context";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -28,6 +30,29 @@ export default function GameOverScreenRedesigned() {
   const winner = sortedPlayers[0];
   const medals = ["🥇", "🥈", "🥉"];
 
+  // ── Animated score count-up for the winner ────────────────────────────────
+  // requestAnimationFrame-driven counter — no extra deps. Ease-out cubic so
+  // the number snaps in fast and settles on the final value.
+  const [displayedScore, setDisplayedScore] = useState(0);
+  useEffect(() => {
+    const target = winner.totalScore;
+    if (target <= 0) {
+      setDisplayedScore(0);
+      return;
+    }
+    const durationMs = 1200;
+    const startedAt = performance.now();
+    let frame = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - startedAt) / durationMs);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setDisplayedScore(Math.round(eased * target));
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [winner.totalScore]);
+
   const handlePlayAgain = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     gameContext.resetGame();
@@ -48,6 +73,7 @@ export default function GameOverScreenRedesigned() {
         end={{ x: 1, y: 1 }}
         style={{ flex: 1 }}
       >
+        <Confetti />
         <ScrollView
           contentContainerStyle={{
             flexGrow: 1,
@@ -149,7 +175,7 @@ export default function GameOverScreenRedesigned() {
                 textShadowRadius: 4,
               }}
             >
-              {winner.totalScore} pts
+              {displayedScore} pts
             </Text>
           </View>
 

@@ -8,8 +8,8 @@ import Animated, {
   withRepeat,
   withSequence,
   Easing,
-  runOnJS,
 } from "react-native-reanimated";
+import Svg, { Circle, Defs, RadialGradient, Stop, Rect } from "react-native-svg";
 
 interface Dice3DEnhancedProps {
   value: number;
@@ -19,6 +19,31 @@ interface Dice3DEnhancedProps {
   size?: number;
 }
 
+// Pip positions on a 100×100 die face. The center 50,50 is dice-anatomically
+// correct for 1, 3, and 5; the rest are placed at canonical .25 / .75 offsets.
+const PIP_POSITIONS: Record<number, [number, number][]> = {
+  1: [[50, 50]],
+  2: [[28, 28], [72, 72]],
+  3: [[28, 28], [50, 50], [72, 72]],
+  4: [[28, 28], [72, 28], [28, 72], [72, 72]],
+  5: [[28, 28], [72, 28], [50, 50], [28, 72], [72, 72]],
+  6: [[28, 28], [72, 28], [28, 50], [72, 50], [28, 72], [72, 72]],
+};
+
+const PIP_RADIUS = 8;          // inside a 100-unit viewBox
+const FACE_GRADIENT_ID = "dieFaceGrad";
+
+/**
+ * Dice3DEnhanced — Maxi Yahtzee crystal die.
+ *
+ * Renders a single die face as a styled View with an SVG overlay for the
+ * pips (replaces the prior View-based pip dots and removes the value-number
+ * "ghost" behind them). The SVG gives crisper pips at all sizes and supports
+ * a subtle radial gradient inside the face for a crystal feel.
+ *
+ * Animations (rotation, glow, press scale) are unchanged from the prior
+ * implementation — the prop signature is also unchanged.
+ */
 export function Dice3DEnhanced({
   value,
   isHeld,
@@ -32,77 +57,37 @@ export function Dice3DEnhanced({
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.3);
 
-  // Dice pip positions for each face (1-6)
-  const pipPositions: Record<number, { x: number; y: number }[]> = {
-    1: [{ x: 50, y: 50 }],
-    2: [
-      { x: 25, y: 25 },
-      { x: 75, y: 75 },
-    ],
-    3: [
-      { x: 25, y: 25 },
-      { x: 50, y: 50 },
-      { x: 75, y: 75 },
-    ],
-    4: [
-      { x: 25, y: 25 },
-      { x: 75, y: 25 },
-      { x: 25, y: 75 },
-      { x: 75, y: 75 },
-    ],
-    5: [
-      { x: 25, y: 25 },
-      { x: 75, y: 25 },
-      { x: 50, y: 50 },
-      { x: 25, y: 75 },
-      { x: 75, y: 75 },
-    ],
-    6: [
-      { x: 25, y: 25 },
-      { x: 75, y: 25 },
-      { x: 25, y: 50 },
-      { x: 75, y: 50 },
-      { x: 25, y: 75 },
-      { x: 75, y: 75 },
-    ],
-  };
-
   useEffect(() => {
     if (isRolling) {
-      // Rapid rotation animation for rolling effect
       rotateX.value = withRepeat(
         withSequence(
           withTiming(360, { duration: 100, easing: Easing.linear }),
-          withTiming(0, { duration: 0 })
+          withTiming(0, { duration: 0 }),
         ),
-        -1
+        -1,
       );
-
       rotateY.value = withRepeat(
         withSequence(
           withTiming(360, { duration: 120, easing: Easing.linear }),
-          withTiming(0, { duration: 0 })
+          withTiming(0, { duration: 0 }),
         ),
-        -1
+        -1,
       );
-
       rotateZ.value = withRepeat(
         withSequence(
           withTiming(360, { duration: 140, easing: Easing.linear }),
-          withTiming(0, { duration: 0 })
+          withTiming(0, { duration: 0 }),
         ),
-        -1
+        -1,
       );
-
       glowOpacity.value = withRepeat(
         withSequence(
           withTiming(0.8, { duration: 200 }),
-          withTiming(0.3, { duration: 200 })
+          withTiming(0.3, { duration: 200 }),
         ),
-        -1
+        -1,
       );
     } else {
-      // Stop rolling and settle
       rotateX.value = withTiming(0, { duration: 300 });
       rotateY.value = withTiming(0, { duration: 300 });
       rotateZ.value = withTiming(0, { duration: 300 });
@@ -112,11 +97,11 @@ export function Dice3DEnhanced({
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
+      { perspective: 1000 },
       { rotateX: `${rotateX.value}deg` },
       { rotateY: `${rotateY.value}deg` },
       { rotateZ: `${rotateZ.value}deg` },
       { scale: scale.value },
-      { perspective: 1000 },
     ],
   }));
 
@@ -124,28 +109,32 @@ export function Dice3DEnhanced({
     opacity: glowOpacity.value,
   }));
 
-  const pips = pipPositions[value] || pipPositions[1];
+  const pips = PIP_POSITIONS[value] ?? PIP_POSITIONS[1];
+  const pipColor = isHeld ? C.amber : C.dicePip;
+  const borderColor = isHeld ? C.amber : C.diceBorder;
+  const glowColor = isHeld ? C.amber : C.purple;
 
   return (
     <Pressable
       onPress={() => {
         scale.value = withSequence(
           withTiming(0.95, { duration: 100 }),
-          withTiming(1, { duration: 100 })
+          withTiming(1, { duration: 100 }),
         );
         onPress?.();
       }}
       style={{ alignItems: "center", justifyContent: "center" }}
     >
+      {/* Outer halo */}
       <Animated.View style={[glowStyle, { position: "absolute" }]}>
         <View
           style={{
             width: size + 20,
             height: size + 20,
             borderRadius: size / 4,
-            backgroundColor: isHeld ? C.amber : C.purple,
+            backgroundColor: glowColor,
             opacity: 0.35,
-            shadowColor: isHeld ? C.amber : C.purple,
+            shadowColor: glowColor,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.8,
             shadowRadius: 12,
@@ -154,6 +143,7 @@ export function Dice3DEnhanced({
         />
       </Animated.View>
 
+      {/* Die body */}
       <Animated.View
         style={[
           animatedStyle,
@@ -163,10 +153,9 @@ export function Dice3DEnhanced({
             borderRadius: size / 6,
             backgroundColor: C.diceBg,
             borderWidth: 2,
-            borderColor: isHeld ? C.amber : C.diceBorder,
-            justifyContent: "center",
-            alignItems: "center",
-            shadowColor: isHeld ? C.amber : C.purple,
+            borderColor,
+            overflow: "hidden",
+            shadowColor: glowColor,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.6,
             shadowRadius: 8,
@@ -174,49 +163,30 @@ export function Dice3DEnhanced({
           },
         ]}
       >
-        {/* Pips */}
-        {pips.map((pip, idx) => (
-          <View
-            key={idx}
-            style={{
-              position: "absolute",
-              width: size * 0.15,
-              height: size * 0.15,
-              borderRadius: size * 0.075,
-              backgroundColor: isHeld ? C.amber : C.dicePip,
-              left: `${pip.x}%`,
-              top: `${pip.y}%`,
-              transform: [
-                { translateX: -(size * 0.075) },
-                { translateY: -(size * 0.075) },
-              ],
-              shadowColor: isHeld ? C.amber : C.purple,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.8,
-              shadowRadius: 4,
-              elevation: 4,
-            }}
-          />
-        ))}
-
-        {/* Value display (for reference) */}
-        <Text
-          style={{
-            position: "absolute",
-            fontSize: size * 0.3,
-            fontWeight: "900",
-            color: isHeld ? C.amber : C.textSecondary,
-            opacity: 0.15,
-            textShadowColor: isHeld ? C.amber : C.purple,
-            textShadowOffset: { width: 0, height: 0 },
-            textShadowRadius: 2,
-          }}
-        >
-          {value}
-        </Text>
+        <Svg width={size} height={size} viewBox="0 0 100 100">
+          <Defs>
+            {/* Subtle radial sheen to suggest crystal interior */}
+            <RadialGradient id={FACE_GRADIENT_ID} cx="35" cy="30" r="60">
+              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.10" />
+              <Stop offset="60%" stopColor="#FFFFFF" stopOpacity="0.02" />
+              <Stop offset="100%" stopColor="#000000" stopOpacity="0.20" />
+            </RadialGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100" height="100" fill={`url(#${FACE_GRADIENT_ID})`} />
+          {pips.map(([cx, cy], idx) => (
+            <Circle
+              key={idx}
+              cx={cx}
+              cy={cy}
+              r={PIP_RADIUS}
+              fill={pipColor}
+              opacity={0.95}
+            />
+          ))}
+        </Svg>
       </Animated.View>
 
-      {/* Status indicator */}
+      {/* Held badge */}
       {isHeld && (
         <View
           style={{

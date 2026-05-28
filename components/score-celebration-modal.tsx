@@ -9,6 +9,7 @@ import Animated, {
   Easing,
 } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { C } from "@/constants/game-theme";
 
 interface ScoreCelebrationModalProps {
   visible: boolean;
@@ -105,16 +106,16 @@ export function ScoreCelebrationModal({
           ]}
         >
           <LinearGradient
-            colors={["rgba(20, 184, 166, 0.2)", "rgba(16, 185, 129, 0.1)"]}
+            colors={["rgba(124, 58, 237, 0.25)", "rgba(124, 58, 237, 0.08)"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
               borderWidth: 2,
-              borderColor: "#14B8A6",
+              borderColor: C.purple,
               paddingVertical: 40,
               paddingHorizontal: 24,
               alignItems: "center",
-              shadowColor: "#14B8A6",
+              shadowColor: C.purple,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.6,
               shadowRadius: 20,
@@ -130,7 +131,7 @@ export function ScoreCelebrationModal({
                   width: 200,
                   height: 200,
                   borderRadius: 100,
-                  backgroundColor: "#14B8A6",
+                  backgroundColor: C.purple,
                   opacity: 0.2,
                 },
               ]}
@@ -176,7 +177,7 @@ export function ScoreCelebrationModal({
               style={{
                 fontSize: 16,
                 fontWeight: "700",
-                color: "#14B8A6",
+                color: C.purple,
                 marginBottom: 8,
                 textAlign: "center",
                 letterSpacing: 1,
@@ -189,10 +190,10 @@ export function ScoreCelebrationModal({
               style={{
                 fontSize: 32,
                 fontWeight: "900",
-                color: "#FFD700",
+                color: C.gold,
                 marginBottom: 12,
                 textAlign: "center",
-                textShadowColor: "#FFD700",
+                textShadowColor: C.gold,
                 textShadowOffset: { width: 0, height: 0 },
                 textShadowRadius: 4,
               }}
@@ -204,7 +205,7 @@ export function ScoreCelebrationModal({
               style={{
                 fontSize: 14,
                 fontWeight: "600",
-                color: "#E0E7FF",
+                color: C.textSecondary,
                 textAlign: "center",
                 marginBottom: 4,
               }}
@@ -216,7 +217,7 @@ export function ScoreCelebrationModal({
               style={{
                 fontSize: 18,
                 fontWeight: "700",
-                color: "#14B8A6",
+                color: C.purple,
                 textAlign: "center",
                 letterSpacing: 0.5,
               }}
