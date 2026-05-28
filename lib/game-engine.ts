@@ -88,96 +88,144 @@ function countDice(dice: number[]): Record<number, number> {
   return counts;
 }
 
-/**
- * Get sorted counts in descending order
- */
-function getSortedCounts(dice: number[]): number[] {
-  const counts = countDice(dice);
-  return Object.values(counts).sort((a, b) => b - a);
-}
 
 /**
- * Check if dice form a straight
- */
-function isStraight(dice: number[], length: number): boolean {
-  const sorted = [...new Set(dice)].sort((a, b) => a - b);
-  if (sorted.length < length) return false;
-
-  for (let i = 0; i <= sorted.length - length; i++) {
-    let isConsecutive = true;
-    for (let j = 1; j < length; j++) {
-      if (sorted[i + j] !== sorted[i + j - 1] + 1) {
-        isConsecutive = false;
-        break;
-      }
-    }
-    if (isConsecutive) return true;
-  }
-  return false;
-}
-
-/**
- * Calculate score for a given category
- * Returns null if the roll doesn't match the category
+ * Calculate score for a given category.
+ *
+ * Scoring follows standard Maxi Yahtzee (Norwegian) rules:
+ *  - Pair/Two Pairs/Three Pairs: sum of MATCHING dice only
+ *  - Three/Four/Five of a Kind: sum of the matching dice only
+ *  - Small Straight: exactly 1-2-3-4-5 present → 15 pts
+ *  - Big Straight: exactly 2-3-4-5-6 present → 20 pts
+ *  - Full Straight: all six values 1-6 → 21 pts
+ *  - Full House: 3 of a kind + pair (different values), sum those 5 dice
+ *  - Villa: two sets of 3, sum all 6 dice
+ *  - Tower: four of a kind + pair, sum all 6 dice
+ *  - Chance: sum of all dice
+ *  - Maxi-Yahtzee: all dice same → 100 pts
+ *
+ * Returns null when the roll does not satisfy the category.
  */
 export function calculateScore(dice: number[], category: ScoringCategory): number | null {
   const sum = dice.reduce((a, b) => a + b, 0);
-  const counts = getSortedCounts(dice);
+  const fc = countDice(dice); // fc[v] = count of face value v
 
   switch (category) {
-    // Upper section: sum of matching values
-    case "ones":
-      return dice.filter((d) => d === 1).reduce((a, b) => a + b, 0);
-    case "twos":
-      return dice.filter((d) => d === 2).reduce((a, b) => a + b, 0);
-    case "threes":
-      return dice.filter((d) => d === 3).reduce((a, b) => a + b, 0);
-    case "fours":
-      return dice.filter((d) => d === 4).reduce((a, b) => a + b, 0);
-    case "fives":
-      return dice.filter((d) => d === 5).reduce((a, b) => a + b, 0);
-    case "sixes":
-      return dice.filter((d) => d === 6).reduce((a, b) => a + b, 0);
+    // ── Upper section ──────────────────────────────────────────────────────────
+    case "ones":   return dice.filter((d) => d === 1).reduce((a, b) => a + b, 0);
+    case "twos":   return dice.filter((d) => d === 2).reduce((a, b) => a + b, 0);
+    case "threes": return dice.filter((d) => d === 3).reduce((a, b) => a + b, 0);
+    case "fours":  return dice.filter((d) => d === 4).reduce((a, b) => a + b, 0);
+    case "fives":  return dice.filter((d) => d === 5).reduce((a, b) => a + b, 0);
+    case "sixes":  return dice.filter((d) => d === 6).reduce((a, b) => a + b, 0);
 
-    // Pairs and combinations
-    case "pair":
-      return counts[0] >= 2 ? sum : null;
-    case "twoPairs":
-      return counts[0] >= 2 && counts[1] >= 2 ? sum : null;
-    case "threePairs":
-      return counts[0] >= 2 && counts[1] >= 2 && counts[2] >= 2 ? sum : null;
+    // ── Pairs ──────────────────────────────────────────────────────────────────
+    case "pair": {
+      // Highest pair: v × 2
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 2) return v * 2;
+      }
+      return null;
+    }
+    case "twoPairs": {
+      // Two highest distinct pairs: sum of those four dice
+      const pairs: number[] = [];
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 2) pairs.push(v);
+        if (pairs.length === 2) break;
+      }
+      if (pairs.length < 2) return null;
+      return pairs[0] * 2 + pairs[1] * 2;
+    }
+    case "threePairs": {
+      // Three distinct pairs: sum of all six pair-dice
+      const pairs: number[] = [];
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 2) pairs.push(v);
+        if (pairs.length === 3) break;
+      }
+      if (pairs.length < 3) return null;
+      return pairs[0] * 2 + pairs[1] * 2 + pairs[2] * 2;
+    }
 
-    // Of a kind
-    case "threeOfAKind":
-      return counts[0] >= 3 ? sum : null;
-    case "fourOfAKind":
-      return counts[0] >= 4 ? sum : null;
-    case "fiveOfAKind":
-      return counts[0] >= 5 ? sum : null;
+    // ── Of a kind ──────────────────────────────────────────────────────────────
+    case "threeOfAKind": {
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 3) return v * 3;
+      }
+      return null;
+    }
+    case "fourOfAKind": {
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 4) return v * 4;
+      }
+      return null;
+    }
+    case "fiveOfAKind": {
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 5) return v * 5;
+      }
+      return null;
+    }
 
-    // Straights
-    case "smallStraight":
-      return isStraight(dice, 5) ? 15 : null;
-    case "bigStraight":
-      // Check if we have 2-6 straight (no 1)
-      const hasBigStraight = isStraight(dice, 5) && !dice.includes(1);
-      return hasBigStraight ? 20 : null;
-    case "fullStraight":
-      return isStraight(dice, 6) ? 21 : null;
+    // ── Straights ──────────────────────────────────────────────────────────────
+    case "smallStraight": {
+      // Must contain 1-2-3-4-5 (the 6th die is irrelevant)
+      const u = new Set(dice);
+      return [1, 2, 3, 4, 5].every((v) => u.has(v)) ? 15 : null;
+    }
+    case "bigStraight": {
+      // Must contain 2-3-4-5-6 (the 6th die is irrelevant)
+      const u = new Set(dice);
+      return [2, 3, 4, 5, 6].every((v) => u.has(v)) ? 20 : null;
+    }
+    case "fullStraight": {
+      // All six distinct values 1-6
+      return new Set(dice).size === 6 ? 21 : null;
+    }
 
-    // Full House and variants
-    case "fullHouse":
-      return counts[0] >= 3 && counts[1] >= 2 ? sum : null;
-    case "villa":
-      return counts[0] >= 3 && counts[1] >= 3 ? sum : null;
-    case "tower":
-      return counts[0] >= 4 && counts[1] >= 2 ? sum : null;
+    // ── House variants ─────────────────────────────────────────────────────────
+    case "fullHouse": {
+      // 3 of a kind + pair (different values); score = 3×threeVal + 2×pairVal
+      let threeVal: number | null = null;
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 3 && threeVal === null) { threeVal = v; }
+      }
+      if (threeVal === null) return null;
+      for (let v = 6; v >= 1; v--) {
+        if (v !== threeVal && fc[v] >= 2) return threeVal * 3 + v * 2;
+      }
+      return null;
+    }
+    case "villa": {
+      // Two sets of three; score = sum of all 6 dice
+      const threes: number[] = [];
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 3) threes.push(v);
+        if (threes.length === 2) break;
+      }
+      if (threes.length < 2) return null;
+      return threes[0] * 3 + threes[1] * 3;
+    }
+    case "tower": {
+      // Four of a kind + pair (different values); score = sum of all 6 dice
+      let fourVal: number | null = null;
+      for (let v = 6; v >= 1; v--) {
+        if (fc[v] >= 4 && fourVal === null) { fourVal = v; }
+      }
+      if (fourVal === null) return null;
+      for (let v = 6; v >= 1; v--) {
+        if (v !== fourVal && fc[v] >= 2) return fourVal * 4 + v * 2;
+      }
+      return null;
+    }
 
-    // Chance and Maxi-Yahtzee
+    // ── Specials ───────────────────────────────────────────────────────────────
     case "chance":
       return sum;
     case "maxiYahtzee":
-      return counts[0] === 6 ? 100 : null;
+      // All dice show the same face
+      return new Set(dice).size === 1 ? 100 : null;
 
     default:
       return null;

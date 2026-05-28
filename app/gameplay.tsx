@@ -1,4 +1,5 @@
-import { ScrollView, Text, View, Pressable, FlatList } from "react-native";
+import React, { useState } from "react";
+import { ScrollView, Text, View, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
 import { Dice3DEnhanced } from "@/components/dice-3d-enhanced";
@@ -6,11 +7,49 @@ import { ScoreCelebrationModal } from "@/components/score-celebration-modal";
 import { useGame } from "@/lib/game-context";
 import { audioManager } from "@/lib/audio-manager";
 import { useRouter } from "expo-router";
-import { useState } from "react";
 import * as Haptics from "expo-haptics";
-import type { ScoringCategory } from "@/lib/game-engine";
+import { C, GRADIENTS } from "@/constants/game-theme";
+import {
+  calculateScore,
+  calculateBonus,
+  getCategoryName,
+  getCategoryPoints,
+  type ScoringCategory,
+} from "@/lib/game-engine";
 
-export default function GameplayScreenRedesigned() {
+// ── Scorecard section definitions ────────────────────────────────────────────
+type SectionDef = { title: string; categories: ScoringCategory[] };
+
+const SECTIONS: SectionDef[] = [
+  {
+    title: "UPPER SECTION",
+    categories: ["ones", "twos", "threes", "fours", "fives", "sixes"],
+  },
+  {
+    title: "COMBINATION SCORES",
+    categories: [
+      "pair", "twoPairs", "threePairs",
+      "threeOfAKind", "fourOfAKind", "fiveOfAKind",
+    ],
+  },
+  {
+    title: "STRAIGHTS",
+    categories: ["smallStraight", "bigStraight", "fullStraight"],
+  },
+  {
+    title: "HOUSE & MISC.",
+    categories: ["fullHouse", "chance"],
+  },
+  {
+    title: "MAXI SPECIALS",
+    categories: ["villa", "tower", "maxiYahtzee"],
+  },
+];
+
+const ALL_CATEGORIES: ScoringCategory[] = SECTIONS.flatMap((s) => s.categories);
+
+// ── Component ────────────────────────────────────────────────────────────────
+export default function GameplayScreen() {
   const router = useRouter();
   const gameContext = useGame();
   const [celebrationVisible, setCelebrationVisible] = useState(false);
@@ -19,427 +58,354 @@ export default function GameplayScreenRedesigned() {
   if (!gameContext.gameState) {
     return (
       <ScreenContainer>
-        <Text>Loading game...</Text>
+        <Text style={{ color: C.textSecondary }}>Loading game...</Text>
       </ScreenContainer>
     );
   }
 
-  const gameState = gameContext.gameState;
+  const { gameState, isPaused, lastScoredCategory } = gameContext;
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  
-  // Build current turn data from game state
-  const currentTurn = {
-    dice: gameState.currentDice,
-    heldDice: gameState.heldDice,
-    rollsRemaining: gameState.rollsRemaining,
-    isRolling: false,
-    scores: currentPlayer.scores,
-  };
+  const scoredCategories = Object.keys(currentPlayer.scores) as ScoringCategory[];
+  const hasRolled = gameState.currentDice.some((d) => d > 0);
 
+  // ── Score preview: top 3 scoring options for the current roll ──────────────
+  const scorePreview = hasRolled
+    ? ALL_CATEGORIES.filter((cat) => !scoredCategories.includes(cat))
+        .map((cat) => ({ cat, score: calculateScore(gameState.currentDice, cat) }))
+        .filter((item): item is { cat: ScoringCategory; score: number } =>
+          item.score !== null && item.score > 0
+        )
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+    : [];
+
+  // ── Upper section bonus progress ──────────────────────────────────────────
+  const upperTotal = (["ones", "twos", "threes", "fours", "fives", "sixes"] as ScoringCategory[])
+    .reduce((sum, cat) => sum + (currentPlayer.scores[cat] ?? 0), 0);
+  const bonusThreshold = gameState.rules.bonusThreshold;
+  const bonusEarned = calculateBonus(currentPlayer.scores, bonusThreshold);
+  const bonusProgress = Math.min(upperTotal / bonusThreshold, 1);
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleRollDice = async () => {
+    if (gameState.rollsRemaining <= 0 || isPaused) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await audioManager.playDiceRoll();
     gameContext.rollDice();
   };
 
   const handleDicePress = (index: number) => {
+    if (!hasRolled || isPaused) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     gameContext.holdDie(index);
   };
 
-  const handleScoreCategory = async (category: string) => {
-    const score = currentTurn.scores[category as keyof typeof currentTurn.scores] || 0;
-    setCelebrationData({ score, category });
+  const handleScoreCategory = async (category: ScoringCategory) => {
+    if (!hasRolled || isPaused) return;
+    const score = calculateScore(gameState.currentDice, category) ?? 0;
+    setCelebrationData({ score, category: getCategoryName(category) });
     setCelebrationVisible(true);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await audioManager.playScoreConfirmation();
     gameContext.scoreCategory(category);
-  };
-
-  const allCategories: ScoringCategory[] = [
-    "ones", "twos", "threes", "fours", "fives", "sixes",
-    "pair", "twoPairs", "threePairs", "threeOfAKind", "fourOfAKind", "fiveOfAKind",
-    "smallStraight", "bigStraight", "fullStraight", "fullHouse", "villa", "tower",
-    "chance", "maxiYahtzee"
-  ];
-  const scoredCategories = Object.keys(currentPlayer.scores);
-  const availableCategories = allCategories.filter((cat: ScoringCategory) => !scoredCategories.includes(cat));
-
-  const handlePause = () => {
-    gameContext.pauseGame();
+    if (gameState.gameOver) router.push("/gameover");
   };
 
   const handleQuit = () => {
     gameContext.quitGame();
-    router.push('/');
+    router.push("/");
   };
 
-  const handleUndo = () => {
-    gameContext.undoLastScore();
-  };
+  // ── Render helpers ────────────────────────────────────────────────────────
+  const rollsTotal = gameState.rules.throwsPerTurn;
+  const rollsUsed = rollsTotal - gameState.rollsRemaining;
+  const canRoll = gameState.rollsRemaining > 0 && !isPaused;
 
   return (
     <ScreenContainer containerClassName="bg-black" className="p-0">
-      <LinearGradient
-        colors={["#0F172A", "#1E1B4B", "#2D1B69", "#1E0B4B"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            paddingTop: 32,
-            paddingBottom: 32,
-          }}
-        >
-          {/* Control Buttons */}
-          <View
-            style={{
-              flexDirection: "row",
-              gap: 12,
-              marginBottom: 20,
-              justifyContent: "flex-end",
-            }}
-          >
-            {gameContext.lastScoredCategory && (
-              <Pressable
-                onPress={handleUndo}
-                style={({ pressed }) => ({
-                  opacity: pressed ? 0.8 : 1,
-                  transform: [{ scale: pressed ? 0.95 : 1 }],
-                })}
-              >
-                <View
-                  style={{
-                    backgroundColor: "rgba(34, 197, 94, 0.2)",
-                    borderWidth: 1,
-                    borderColor: "#22C55E",
-                    borderRadius: 8,
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                  }}
-                >
-                  <Text style={{ color: "#22C55E", fontSize: 12, fontWeight: "600" }}>↶ UNDO</Text>
+      <LinearGradient colors={GRADIENTS.bg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
+
+        {/* ── Fixed top area: player card + dice + roll ─────────────────── */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 48, paddingBottom: 8 }}>
+
+          {/* Header row: player info + controls */}
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <View>
+              <Text style={{ fontSize: 10, color: C.textMuted, letterSpacing: 1, marginBottom: 2 }}>
+                TURN {gameState.currentTurn}/20 · {currentPlayer.name}
+              </Text>
+              <Text style={{ fontSize: 28, fontWeight: "900", color: C.gold, letterSpacing: 1 }}>
+                {currentPlayer.totalScore}
+                <Text style={{ fontSize: 14, fontWeight: "400", color: C.textMuted }}> pts</Text>
+              </Text>
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {lastScoredCategory && (
+                <Pressable onPress={gameContext.undoLastScore}>
+                  <View style={{ backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.separator, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+                    <Text style={{ color: C.textSecondary, fontSize: 11, fontWeight: "600" }}>↶ UNDO</Text>
+                  </View>
+                </Pressable>
+              )}
+              <Pressable onPress={gameContext.pauseGame}>
+                <View style={{ backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.separator, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+                  <Text style={{ color: C.textSecondary, fontSize: 11, fontWeight: "600" }}>⏸</Text>
                 </View>
               </Pressable>
-            )}
-            <Pressable
-              onPress={handlePause}
-              style={({ pressed }) => ({
-                opacity: pressed ? 0.8 : 1,
-                transform: [{ scale: pressed ? 0.95 : 1 }],
-              })}
-            >
-              <View
-                style={{
-                  backgroundColor: "rgba(245, 158, 11, 0.2)",
-                  borderWidth: 1,
-                  borderColor: "#F59E0B",
-                  borderRadius: 8,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                }}
-              >
-                <Text style={{ color: "#F59E0B", fontSize: 12, fontWeight: "600" }}>⏸ PAUSE</Text>
-              </View>
-            </Pressable>
-            <Pressable
-              onPress={handleQuit}
-              style={({ pressed }) => ({
-                opacity: pressed ? 0.8 : 1,
-                transform: [{ scale: pressed ? 0.95 : 1 }],
-              })}
-            >
-              <View
-                style={{
-                  backgroundColor: "rgba(239, 68, 68, 0.2)",
-                  borderWidth: 1,
-                  borderColor: "#EF4444",
-                  borderRadius: 8,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                }}
-              >
-                <Text style={{ color: "#EF4444", fontSize: 12, fontWeight: "600" }}>✕ QUIT</Text>
-              </View>
-            </Pressable>
-          </View>
-
-          {/* Player Info Card */}
-          <View
-            style={{
-              borderRadius: 12,
-              borderWidth: 2,
-              borderColor: "#00D9FF",
-              backgroundColor: "rgba(0, 217, 255, 0.05)",
-              paddingVertical: 12,
-              paddingHorizontal: 16,
-              marginBottom: 20,
-              shadowColor: "#00D9FF",
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.4,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <View>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: "#A0AEC0",
-                    marginBottom: 4,
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  CURRENT PLAYER
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 18,
-                    fontWeight: "700",
-                    color: "#00D9FF",
-                  }}
-                >
-                  {currentPlayer.name}
-                </Text>
-              </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: "#A0AEC0",
-                    marginBottom: 4,
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  TURN {gameState.currentPlayerIndex + 1}/20
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 20,
-                    fontWeight: "900",
-                    color: "#FFD700",
-                    textShadowColor: "#FFD700",
-                    textShadowOffset: { width: 0, height: 0 },
-                    textShadowRadius: 2,
-                  }}
-                >
-                  {currentPlayer.totalScore} pts
-                </Text>
-              </View>
+              <Pressable onPress={handleQuit}>
+                <View style={{ backgroundColor: C.bgCard, borderWidth: 1, borderColor: C.separator, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+                  <Text style={{ color: C.error, fontSize: 11, fontWeight: "600" }}>✕</Text>
+                </View>
+              </Pressable>
             </View>
           </View>
 
-          {/* Throws Counter */}
-          <View
-            style={{
-              borderRadius: 12,
-              borderWidth: 2,
-              borderColor: "#FF00FF",
-              backgroundColor: "rgba(255, 0, 255, 0.05)",
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              marginBottom: 24,
-              alignItems: "center",
-              shadowColor: "#FF00FF",
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.4,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "700",
-                color: "#FF00FF",
-                letterSpacing: 1,
-              }}
-            >
-              🎲 Throws: {currentTurn.rollsRemaining}/{gameState.rules.throwsPerTurn}
-            </Text>
-          </View>
-
-          {/* Dice Grid */}
-          <View
-            style={{
-              backgroundColor: "rgba(147, 51, 234, 0.1)",
-              borderRadius: 16,
-              borderWidth: 2,
-              borderColor: "#9333EA",
-              padding: 20,
-              marginBottom: 24,
-              shadowColor: "#9333EA",
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                flexWrap: "wrap",
-                justifyContent: "center",
-                gap: 16,
-              }}
-            >
-              {currentTurn.dice.map((value: number, index: number) => (
+          {/* Dice grid */}
+          <View style={{
+            backgroundColor: C.bgCard,
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: C.purpleBorder,
+            padding: 16,
+            marginBottom: 10,
+          }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 12 }}>
+              {gameState.currentDice.map((value, index) => (
                 <Dice3DEnhanced
                   key={index}
                   value={value}
-                  isHeld={currentTurn.heldDice[index]}
-                  isRolling={currentTurn.isRolling}
+                  isHeld={gameState.heldDice[index]}
+                  isRolling={false}
                   onPress={() => handleDicePress(index)}
-                  size={70}
+                  size={64}
+                />
+              ))}
+            </View>
+
+            {/* Roll indicators */}
+            <View style={{ flexDirection: "row", justifyContent: "center", gap: 8, marginTop: 12 }}>
+              {Array.from({ length: rollsTotal }).map((_, i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: 10, height: 10, borderRadius: 5,
+                    backgroundColor: i < rollsUsed ? C.purple : C.bgCardStrong,
+                    borderWidth: 1,
+                    borderColor: i < rollsUsed ? C.purple : C.purpleBorder,
+                  }}
                 />
               ))}
             </View>
           </View>
 
-          {/* Roll Button */}
+          {/* Roll button */}
           <Pressable
             onPress={handleRollDice}
-            disabled={currentTurn.rollsRemaining === 0 || currentTurn.isRolling}
-            style={({ pressed }) => ({
-              opacity: pressed ? 0.8 : 1,
-              transform: [{ scale: pressed ? 0.98 : 1 }],
-              marginBottom: 24,
-            })}
+            disabled={!canRoll}
+            style={({ pressed }) => ({ opacity: !canRoll ? 0.45 : pressed ? 0.85 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] })}
           >
             <LinearGradient
-              colors={["rgba(255, 0, 255, 0.15)", "rgba(255, 0, 255, 0.05)"]}
+              colors={GRADIENTS.purpleBtn}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={{
-                borderRadius: 12,
-                borderWidth: 2,
-                borderColor: "#FF00FF",
-                paddingVertical: 16,
-                paddingHorizontal: 24,
+                borderRadius: 14,
+                borderWidth: 1.5,
+                borderColor: C.purple,
+                paddingVertical: 14,
                 alignItems: "center",
-                shadowColor: "#FF00FF",
+                shadowColor: C.purple,
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.6,
-                shadowRadius: 16,
-                elevation: 12,
+                shadowRadius: 12,
+                elevation: 10,
               }}
             >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "700",
-                  color: "#FF00FF",
-                  letterSpacing: 1,
-                }}
-              >
-                ✨ ROLL DICE
+              <Text style={{ fontSize: 15, fontWeight: "800", color: C.textPrimary, letterSpacing: 2 }}>
+                {hasRolled ? "🎲 RE-ROLL" : "🎲 ROLL DICE"}
               </Text>
             </LinearGradient>
           </Pressable>
 
-          {/* Scorecard */}
-          <View
-            style={{
-              borderRadius: 12,
-              borderWidth: 2,
-              borderColor: "#00D9FF",
-              backgroundColor: "rgba(0, 217, 255, 0.05)",
-              overflow: "hidden",
-              shadowColor: "#00D9FF",
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: "rgba(0, 217, 255, 0.1)",
-                paddingVertical: 12,
-                paddingHorizontal: 16,
-                borderBottomWidth: 1,
-                borderBottomColor: "#00D9FF",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "700",
-                  color: "#00D9FF",
-                  letterSpacing: 1,
-                }}
-              >
-                SCORECARD
-              </Text>
-            </View>
-
-            <FlatList
-              scrollEnabled={false}
-              data={allCategories}
-              keyExtractor={(item: ScoringCategory) => item}
-              renderItem={({ item: category }: { item: ScoringCategory }) => {
-                const score = currentTurn.scores[category as keyof typeof currentTurn.scores];
-                const isScored = scoredCategories.includes(category);
-
-                return (
-                  <Pressable
-                    onPress={() => !isScored && handleScoreCategory(category)}
-                    disabled={isScored || !availableCategories.includes(category)}
-                    style={({ pressed }) => ({
-                      opacity: isScored ? 0.5 : pressed ? 0.8 : 1,
-                    })}
+          {/* Score preview bar */}
+          {scorePreview.length > 0 && (
+            <View style={{ flexDirection: "row", gap: 6, marginTop: 10 }}>
+              {scorePreview.map(({ cat, score }) => (
+                <Pressable
+                  key={cat}
+                  onPress={() => handleScoreCategory(cat)}
+                  style={{ flex: 1 }}
+                >
+                  <LinearGradient
+                    colors={GRADIENTS.goldBtn}
+                    style={{
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: C.goldBorder,
+                      paddingVertical: 8,
+                      paddingHorizontal: 6,
+                      alignItems: "center",
+                    }}
                   >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: "rgba(0, 217, 255, 0.1)",
-                        backgroundColor: isScored
-                          ? "rgba(0, 217, 255, 0.05)"
-                          : "transparent",
-                      }}
+                    <Text style={{ fontSize: 9, color: C.textMuted, letterSpacing: 0.5, marginBottom: 2 }} numberOfLines={1}>
+                      {getCategoryName(cat).toUpperCase()}
+                    </Text>
+                    <Text style={{ fontSize: 18, fontWeight: "900", color: C.gold }}>{score}</Text>
+                  </LinearGradient>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* ── Scrollable scorecard ──────────────────────────────────────── */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {SECTIONS.map((section) => (
+            <View key={section.title} style={{ marginBottom: 6 }}>
+              {/* Section header */}
+              <View style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingVertical: 6,
+                paddingHorizontal: 4,
+                marginTop: 4,
+              }}>
+                <Text style={{ fontSize: 10, fontWeight: "700", color: C.textMuted, letterSpacing: 1.5 }}>
+                  {section.title}
+                </Text>
+                {/* Bonus progress for upper section */}
+                {section.title === "UPPER SECTION" && (
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    {bonusEarned > 0 ? (
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: C.emerald }}>
+                        ✓ BONUS +50
+                      </Text>
+                    ) : (
+                      <Text style={{ fontSize: 10, color: C.textMuted }}>
+                        {upperTotal}/{bonusThreshold} for +50
+                      </Text>
+                    )}
+                    <View style={{ width: 48, height: 4, backgroundColor: C.bgCardStrong, borderRadius: 2, overflow: "hidden" }}>
+                      <View style={{ width: `${bonusProgress * 100}%`, height: "100%", backgroundColor: bonusEarned > 0 ? C.emerald : C.purple, borderRadius: 2 }} />
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Category rows */}
+              <View style={{
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: C.separator,
+                overflow: "hidden",
+                backgroundColor: C.bgCard,
+              }}>
+                {section.categories.map((cat, idx) => {
+                  const isScored = scoredCategories.includes(cat);
+                  const storedScore = currentPlayer.scores[cat];
+                  const potentialScore = hasRolled && !isScored
+                    ? calculateScore(gameState.currentDice, cat)
+                    : null;
+                  const fixedPts = getCategoryPoints(cat);
+                  const isLast = idx === section.categories.length - 1;
+
+                  return (
+                    <Pressable
+                      key={cat}
+                      onPress={() => !isScored && hasRolled && handleScoreCategory(cat)}
+                      disabled={isScored || !hasRolled}
+                      style={({ pressed }) => ({
+                        opacity: isScored ? 0.55 : pressed ? 0.75 : 1,
+                      })}
                     >
-                      <Text
-                        style={{
+                      <View style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        paddingVertical: 11,
+                        paddingHorizontal: 14,
+                        borderBottomWidth: isLast ? 0 : 1,
+                        borderBottomColor: C.separator,
+                        backgroundColor: isScored ? C.bgScored : "transparent",
+                      }}>
+                        {/* Category name */}
+                        <Text style={{
+                          flex: 1,
                           fontSize: 13,
                           fontWeight: "600",
-                          color: isScored ? "#6B7280" : "#E0E7FF",
-                          flex: 1,
-                        }}
-                      >
-                        {category.replace(/([A-Z])/g, ' $1').trim().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "700",
-                          color: isScored ? "#00D9FF" : "#FFD700",
-                        }}
-                      >
-                        {isScored ? score : "—"}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              }}
-            />
-          </View>
+                          color: isScored ? C.textMuted : C.textPrimary,
+                        }}>
+                          {getCategoryName(cat)}
+                        </Text>
+
+                        {/* Fixed points label */}
+                        {fixedPts && !isScored && (
+                          <Text style={{ fontSize: 11, color: C.textMuted, marginRight: 8 }}>{fixedPts}</Text>
+                        )}
+
+                        {/* Score display */}
+                        {isScored ? (
+                          <Text style={{ fontSize: 15, fontWeight: "700", color: C.emerald, minWidth: 32, textAlign: "right" }}>
+                            {storedScore}
+                          </Text>
+                        ) : potentialScore !== null ? (
+                          <Text style={{ fontSize: 15, fontWeight: "700", color: C.gold, minWidth: 32, textAlign: "right" }}>
+                            {potentialScore}
+                          </Text>
+                        ) : (
+                          <Text style={{ fontSize: 13, color: C.textMuted, minWidth: 32, textAlign: "right" }}>—</Text>
+                        )}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
         </ScrollView>
 
-        {/* Score Celebration Modal */}
+        {/* ── Pause overlay ──────────────────────────────────────────────── */}
+        {isPaused && (
+          <View style={{
+            position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: "rgba(5,5,5,0.88)",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 20,
+          }}>
+            <Text style={{ fontSize: 36, fontWeight: "900", color: C.textPrimary, letterSpacing: 3 }}>
+              PAUSED
+            </Text>
+            <Text style={{ fontSize: 13, color: C.textSecondary }}>
+              {currentPlayer.name} · Turn {gameState.currentTurn}/20
+            </Text>
+
+            <Pressable onPress={gameContext.resumeGame} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
+              <LinearGradient
+                colors={GRADIENTS.purpleBtn}
+                style={{
+                  borderRadius: 14, borderWidth: 1.5, borderColor: C.purple,
+                  paddingVertical: 14, paddingHorizontal: 40,
+                  shadowColor: C.purple, shadowOpacity: 0.5, shadowRadius: 12, elevation: 8,
+                }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: "800", color: C.textPrimary, letterSpacing: 2 }}>
+                  ▶ RESUME
+                </Text>
+              </LinearGradient>
+            </Pressable>
+
+            <Pressable onPress={handleQuit} style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
+              <Text style={{ fontSize: 13, color: C.error, fontWeight: "600" }}>Quit Game</Text>
+            </Pressable>
+          </View>
+        )}
+
         <ScoreCelebrationModal
           visible={celebrationVisible}
           score={celebrationData.score}

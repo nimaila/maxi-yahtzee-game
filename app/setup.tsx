@@ -1,3 +1,4 @@
+import { C, GRADIENTS } from "@/constants/game-theme";
 import { ScrollView, Text, View, Pressable, TextInput } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ScreenContainer } from "@/components/screen-container";
@@ -29,7 +30,7 @@ export default function SetupScreenRedesigned() {
   return (
     <ScreenContainer containerClassName="bg-black" className="p-0">
       <LinearGradient
-        colors={["#0F172A", "#1E1B4B", "#2D1B69", "#1E0B4B"]}
+        colors={GRADIENTS.bg}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{ flex: 1 }}
@@ -47,7 +48,7 @@ export default function SetupScreenRedesigned() {
               style={{
                 fontSize: 32,
                 fontWeight: "900",
-                color: "#00D9FF",
+                color: C.purple,
                 marginBottom: 8,
                 letterSpacing: 1,
               }}
@@ -57,7 +58,7 @@ export default function SetupScreenRedesigned() {
             <Text
               style={{
                 fontSize: 14,
-                color: "#A0AEC0",
+                color: C.textSecondary,
                 textAlign: "center",
               }}
             >
@@ -70,12 +71,12 @@ export default function SetupScreenRedesigned() {
             style={{
               borderRadius: 12,
               borderWidth: 2,
-              borderColor: "#00D9FF",
+              borderColor: C.purple,
               backgroundColor: "rgba(0, 217, 255, 0.05)",
               paddingVertical: 16,
               paddingHorizontal: 16,
               marginBottom: 20,
-              shadowColor: "#00D9FF",
+              shadowColor: C.purple,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -86,7 +87,7 @@ export default function SetupScreenRedesigned() {
               style={{
                 fontSize: 12,
                 fontWeight: "700",
-                color: "#00D9FF",
+                color: C.purple,
                 marginBottom: 12,
                 letterSpacing: 1,
               }}
@@ -124,10 +125,10 @@ export default function SetupScreenRedesigned() {
                     style={{
                       borderRadius: 8,
                       borderWidth: 2,
-                      borderColor: playerCount === num ? "#00D9FF" : "#4B5563",
+                      borderColor: playerCount === num ? C.purple : C.textMuted,
                       paddingVertical: 12,
                       alignItems: "center",
-                      shadowColor: playerCount === num ? "#00D9FF" : "transparent",
+                      shadowColor: playerCount === num ? C.purple : "transparent",
                       shadowOffset: { width: 0, height: 0 },
                       shadowOpacity: 0.4,
                       shadowRadius: 8,
@@ -138,7 +139,7 @@ export default function SetupScreenRedesigned() {
                       style={{
                         fontSize: 16,
                         fontWeight: "700",
-                        color: playerCount === num ? "#00D9FF" : "#A0AEC0",
+                        color: playerCount === num ? C.purple : C.textSecondary,
                       }}
                     >
                       {num}
@@ -154,12 +155,12 @@ export default function SetupScreenRedesigned() {
             style={{
               borderRadius: 12,
               borderWidth: 2,
-              borderColor: "#FF00FF",
+              borderColor: C.purple,
               backgroundColor: "rgba(255, 0, 255, 0.05)",
               paddingVertical: 16,
               paddingHorizontal: 16,
               marginBottom: 20,
-              shadowColor: "#FF00FF",
+              shadowColor: C.purple,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -170,7 +171,7 @@ export default function SetupScreenRedesigned() {
               style={{
                 fontSize: 12,
                 fontWeight: "700",
-                color: "#FF00FF",
+                color: C.purple,
                 marginBottom: 12,
                 letterSpacing: 1,
               }}
@@ -187,15 +188,15 @@ export default function SetupScreenRedesigned() {
                   setPlayerNames(newNames);
                 }}
                 placeholder={`Player ${i + 1}`}
-                placeholderTextColor="#6B7280"
+                placeholderTextColor={C.textMuted}
                 style={{
                   borderRadius: 8,
                   borderWidth: 1,
-                  borderColor: "#FF00FF",
-                  backgroundColor: "rgba(255, 0, 255, 0.05)",
+                  borderColor: C.purple,
+                  backgroundColor: C.bgCard,
                   paddingVertical: 10,
                   paddingHorizontal: 12,
-                  color: "#E0E7FF",
+                  color: C.textPrimary,
                   fontWeight: "600",
                   marginBottom: i < playerCount - 1 ? 8 : 0,
                 }}
@@ -208,12 +209,12 @@ export default function SetupScreenRedesigned() {
             style={{
               borderRadius: 12,
               borderWidth: 2,
-              borderColor: "#FFD700",
+              borderColor: C.gold,
               backgroundColor: "rgba(255, 215, 0, 0.05)",
               paddingVertical: 16,
               paddingHorizontal: 16,
               marginBottom: 20,
-              shadowColor: "#FFD700",
+              shadowColor: C.gold,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 0.3,
               shadowRadius: 8,
@@ -224,7 +225,7 @@ export default function SetupScreenRedesigned() {
               style={{
                 fontSize: 12,
                 fontWeight: "700",
-                color: "#FFD700",
+                color: C.gold,
                 marginBottom: 12,
                 letterSpacing: 1,
               }}
@@ -245,7 +246,7 @@ export default function SetupScreenRedesigned() {
                   style={{
                     fontSize: 12,
                     fontWeight: "600",
-                    color: "#E0E7FF",
+                    color: C.textPrimary,
                   }}
                 >
                   Bonus Threshold
@@ -254,7 +255,7 @@ export default function SetupScreenRedesigned() {
                   style={{
                     fontSize: 14,
                     fontWeight: "700",
-                    color: "#FFD700",
+                    color: C.gold,
                   }}
                 >
                   {bonusThreshold} pts
@@ -286,7 +287,7 @@ export default function SetupScreenRedesigned() {
                       style={{
                         borderRadius: 8,
                         borderWidth: 1,
-                        borderColor: bonusThreshold === val ? "#FFD700" : "#6B5D3F",
+                        borderColor: bonusThreshold === val ? C.gold : C.bgCardStrong,
                         paddingVertical: 8,
                         alignItems: "center",
                       }}
@@ -295,7 +296,7 @@ export default function SetupScreenRedesigned() {
                         style={{
                           fontSize: 12,
                           fontWeight: "700",
-                          color: bonusThreshold === val ? "#FFD700" : "#A0AEC0",
+                          color: bonusThreshold === val ? C.gold : C.textSecondary,
                         }}
                       >
                         {val}
@@ -319,7 +320,7 @@ export default function SetupScreenRedesigned() {
                   style={{
                     fontSize: 12,
                     fontWeight: "600",
-                    color: "#E0E7FF",
+                    color: C.textPrimary,
                   }}
                 >
                   Throws Per Turn
@@ -328,7 +329,7 @@ export default function SetupScreenRedesigned() {
                   style={{
                     fontSize: 14,
                     fontWeight: "700",
-                    color: "#FFD700",
+                    color: C.gold,
                   }}
                 >
                   {throwsPerTurn}
@@ -360,7 +361,7 @@ export default function SetupScreenRedesigned() {
                       style={{
                         borderRadius: 8,
                         borderWidth: 1,
-                        borderColor: throwsPerTurn === val ? "#FFD700" : "#6B5D3F",
+                        borderColor: throwsPerTurn === val ? C.gold : C.bgCardStrong,
                         paddingVertical: 8,
                         alignItems: "center",
                       }}
@@ -369,7 +370,7 @@ export default function SetupScreenRedesigned() {
                         style={{
                           fontSize: 12,
                           fontWeight: "700",
-                          color: throwsPerTurn === val ? "#FFD700" : "#A0AEC0",
+                          color: throwsPerTurn === val ? C.gold : C.textSecondary,
                         }}
                       >
                         {val}
@@ -393,7 +394,7 @@ export default function SetupScreenRedesigned() {
                   style={{
                     fontSize: 12,
                     fontWeight: "600",
-                    color: "#E0E7FF",
+                    color: C.textPrimary,
                   }}
                 >
                   Number of Dice
@@ -402,7 +403,7 @@ export default function SetupScreenRedesigned() {
                   style={{
                     fontSize: 14,
                     fontWeight: "700",
-                    color: "#FFD700",
+                    color: C.gold,
                   }}
                 >
                   {diceCount}
@@ -434,7 +435,7 @@ export default function SetupScreenRedesigned() {
                       style={{
                         borderRadius: 8,
                         borderWidth: 1,
-                        borderColor: diceCount === val ? "#FFD700" : "#6B5D3F",
+                        borderColor: diceCount === val ? C.gold : C.bgCardStrong,
                         paddingVertical: 8,
                         alignItems: "center",
                       }}
@@ -443,7 +444,7 @@ export default function SetupScreenRedesigned() {
                         style={{
                           fontSize: 12,
                           fontWeight: "700",
-                          color: diceCount === val ? "#FFD700" : "#A0AEC0",
+                          color: diceCount === val ? C.gold : C.textSecondary,
                         }}
                       >
                         {val}
@@ -470,11 +471,11 @@ export default function SetupScreenRedesigned() {
               style={{
                 borderRadius: 12,
                 borderWidth: 2,
-                borderColor: "#00D9FF",
+                borderColor: C.purple,
                 paddingVertical: 16,
                 paddingHorizontal: 24,
                 alignItems: "center",
-                shadowColor: "#00D9FF",
+                shadowColor: C.purple,
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.6,
                 shadowRadius: 16,
@@ -485,7 +486,7 @@ export default function SetupScreenRedesigned() {
                 style={{
                   fontSize: 16,
                   fontWeight: "700",
-                  color: "#00D9FF",
+                  color: C.purple,
                   letterSpacing: 1,
                 }}
               >
